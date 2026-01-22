@@ -1,0 +1,6 @@
+numpy
+opencv-python
+OpenEXR
+Imath
+grpcio>=1.60.0
+grpcio-tools>=1.60.0

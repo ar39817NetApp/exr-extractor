@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package extractor;
+
+service ExtractionService {
+  // Original unary RPC (kept for backward compatibility)
+  rpc ProcessEXRBytes (ProcessEXRBytesRequest) returns (ProcessEXRBytesResponse);
+
+  // Bidirectional streaming RPC for large files
+  rpc ProcessEXRStream (stream EXRChunk) returns (stream PNGChunk);
+
+  // Health check
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Original unary messages
+message ProcessEXRBytesRequest {
+  bytes exr_data = 1;
+}
+
+message ProcessEXRBytesResponse {
+  bytes png_data = 1;
+  int32 width = 2;
+  int32 height = 3;
+  string message = 4;
+}
+
+// Streaming messages
+message EXRChunk {
+  oneof content {
+    EXRHeader header = 1;
+    bytes data = 2;
+  }
+}
+
+message EXRHeader {
+  string filename = 1;
+  int64 total_size = 2;
+  int32 chunk_size = 3;
+}
+
+message PNGChunk {
+  oneof content {
+    PNGHeader header = 1;
+    bytes data = 2;
+    ProcessingStatus status = 3;
+  }
+}
+
+message PNGHeader {
+  int32 width = 1;
+  int32 height = 2;
+  int64 total_size = 3;
+}
+
+message ProcessingStatus {
+  StatusType type = 1;
+  string message = 2;
+  float progress = 3;  // 0.0 to 1.0
+}
+
+enum StatusType {
+  STATUS_UNKNOWN = 0;
+  STATUS_RECEIVING = 1;
+  STATUS_PROCESSING = 2;
+  STATUS_SENDING = 3;
+  STATUS_COMPLETE = 4;
+  STATUS_ERROR = 5;
+}
+
+// Health check messages
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string service_name = 2;
+  string version = 3;
+}
