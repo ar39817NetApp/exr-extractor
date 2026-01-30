@@ -7,131 +7,96 @@ A gRPC service for converting EXR (OpenEXR) image files to PNG format with tone 
 - **gRPC API** - High-performance binary protocol
 - **Tone mapping** - Reinhard photographic tone mapping for HDR to SDR conversion
 - **Auto-scaling** - Exposure control and sRGB color space conversion
-- **Docker Ready**: Containerized for easy deployment
+- **Docker Ready** - Containerized for easy deployment
 
-## Prerequisites
+## Service Information
 
-- Docker Desktop (macOS/Windows) or Docker Engine (Linux)
-- Python 3.9+ (for running the client locally)
+- **Port**: 50051
+- **Container Name**: exr-extractor
+- **Protocol**: gRPC
 
-## Project Structure
-
-```
-exr-extractor/
-├── data/
-│   ├── input/             # Place your .exr files here
-│   └── output/            # Processed .png files will be saved here
-├── proto/
-│   ├── extractor.proto    # gRPC service definition
-│   ├── extractor_pb2.py   # Generated gRPC code
-│   └── extractor_pb2_grpc.py
-├── server/
-│   ├── __init__.py        # Makes server a package
-│   ├── main.py            # Server entry point
-│   ├── server.py          # gRPC service implementation
-│   └── exr_processor.py   # EXR processing logic
-├── client/
-│   └── client.py          # Test client
-├── Dockerfile             # Docker image definition
-├── requirements.txt       # Python dependencies
-├── Makefile               # Project automation commands
-└── README.md              # Project documentation
-```
-
-## Quick Start with Makefile
-
-The project includes a Makefile for easy setup and execution:
+## Quick Start
 
 ```bash
-# Show available commands
-make help
-
-# Build Docker container
-make build
-
-# Run Docker container (detached mode on port 50054)
+# Start the service (builds image automatically)
 make run
 
-# View container logs
+# View logs
 make logs
 
-# Test with a EXR file
-make test data/input/file.exr data/output/result.png
+# Test with an EXR file
+make test INPUT=data/input/CrissyField.exr OUTPUT=data/output/CrissyField.png
 
-# Stop and remove container
+# Stop the service
+make stop
+
+# Clean up (remove container and image)
 make clean
 ```
 
-### Development Commands
+## Available Commands
 
+| Command | Description |
+|---------|-------------|
+| `make run` | Build and start service in Docker |
+| `make logs` | View container logs in real-time |
+| `make stop` | Stop and remove container |
+| `make clean` | Stop container and remove Docker image |
+| `make test INPUT=<file.exr> OUTPUT=<file.png>` | Test with EXR file |
+| `make help` | Show available commands |
+
+## Testing the Service
+
+After starting the service with `make run`, you can test it with your EXR files:
+
+### Basic Test (Recommended)
 ```bash
-# Create virtual environment
-make venv
-
-# Install dependencies
-make install
-
-# Generate gRPC code from proto definition
-make proto
+make test INPUT=data/input/CrissyField.exr OUTPUT=data/output/CrissyField.png
 ```
 
-## Manual Setup
-
-If you prefer not to use Make:
-
-1. **Create virtual environment**:
+### More Examples
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+# Small test file (256x256)
+make test INPUT=data/input/AllHalfValues.exr OUTPUT=data/output/AllHalfValues.png
+
+# Standard HDR image (1218x810, 1.2MB)
+make test INPUT=data/input/CrissyField.exr OUTPUT=data/output/CrissyField.png
+
+# Large 4K HDR (79MB) - may take longer
+make test INPUT=data/input/cedar_bridge_sunset_1_4k.exr OUTPUT=data/output/sunset.png
+
+# Sample file (640x426)
+make test INPUT=data/input/sample_640×426.exr OUTPUT=data/output/sample.png
 ```
 
-2. **Install dependencies**:
-```bash
-pip install -r requirements.txt
+### What Happens During Test
+
+1. The service must be running (`make run`)
+2. The EXR file is read from the `INPUT` path
+3. Tone mapping is applied (Reinhard + sRGB conversion)
+4. PNG file is saved to the `OUTPUT` path
+5. Output directory is created automatically if it doesn't exist
+
+### Expected Output
+
 ```
+Processing: data/input/CrissyField.exr -> data/output/CrissyField.png
+Reading EXR file: data/input/CrissyField.exr
+File size: 1304619 bytes (1.24 MB)
+Sending bytes to localhost:50051...
 
-3. **Generate gRPC code**:
-```bash
-python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. proto/extractor.proto
-```
+Response received!
+Dimensions: 1218x810
+PNG data size: 1668572 bytes (1629.46 KB)
+Message: Successfully processed 1218x810 image
+PNG saved to: data/output/CrissyField.png
 
-## Running the Server
-
-### Using Docker (Recommended):
-
-```bash
-# Build the image
-make build
-
-# Run the container
-make run
-
-# The server will be available on localhost:50051
-```
-
-Or manually:
-```bash
-docker build -t exr-extractor:latest .
-docker run -d --rm -p 50051:50051 --name exr-extractor exr-extractor:latest
-```
-
-The server runs on port 50051 inside the container, mapped to port 50051 on the host.
-
-## Testing with the Client
-
-### Process a EXR file:
-
-```bash
-# Using Make
-make test data/input/input.exr data/output/output.png
-
-# Or manually
-python -m client.client data/input/input.exr data/output/output.png
+✓ Test completed. Check output at: data/output/CrissyField.png
 ```
 
 ## API Details
 
-The service provides a bytes-based RPC method for processing EXR files:
+The service provides a gRPC method for processing EXR files:
 
 ### ProcessEXRBytes
 
@@ -152,11 +117,60 @@ message ProcessEXRBytesResponse {
 }
 ```
 
-### Processing Parameters (hardcoded defaults)
+## Project Structure
+
+```
+exr-extractor/
+├── data/
+│   ├── input/             # Input .exr files
+│   └── output/            # Output .png files (created automatically)
+├── proto/
+│   ├── extractor.proto    # gRPC service definition
+│   ├── extractor_pb2.py
+│   └── extractor_pb2_grpc.py
+├── server/
+│   ├── main.py            # Server entry point
+│   ├── server.py          # gRPC service implementation
+│   └── exr_processor.py   # EXR processing logic
+├── client/
+│   └── client.py          # Test client
+├── Dockerfile
+├── Makefile
+└── README.md
+```
+
+## Processing Parameters
 
 - **Exposure EV**: 0.0 (no adjustment)
 - **Reinhard Key**: 0.18 (standard middle gray)
 - **sRGB Conversion**: Enabled
+
+## Troubleshooting
+
+### Container not running
+```bash
+# Check if container is running
+docker ps | grep exr-extractor
+
+# If not running, start it
+make run
+```
+
+### Test file not found
+```bash
+# Make sure your EXR file exists
+ls -la data/input/
+
+# Check the path is correct relative to the project root
+make test INPUT=data/input/YourFile.exr OUTPUT=data/output/result.png
+```
+
+### Permission issues
+```bash
+# Make sure output directory exists and is writable
+mkdir -p data/output
+chmod 755 data/output
+```
 
 ## License
 
